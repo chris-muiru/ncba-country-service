@@ -1,0 +1,412 @@
+{
+  "info": {
+    "name": "NCBA Country Info Service",
+    "_postman_id": "ncba-country-info-service",
+    "description": "NCBA Integration Microservices Engineer — Case Study\nSOAP + REST + MySQL + Kubernetes\n\nBase URL: http://localhost:8080\n\nFlow:\n1. POST /api/country with a country name\n2. Service converts to sentence case, calls SOAP CountryISOCode, then SOAP FullCountryInfo\n3. Saves CountryInfo + Languages to MySQL\n4. Returns full country data\n\nRun the app first:\n  docker-compose up --build",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "countryId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Returns app health status. Used by Kubernetes liveness and readiness probes."
+          },
+          "response": [
+            {
+              "name": "200 UP",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/actuator/health" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"UP\",\n  \"components\": {\n    \"db\": { \"status\": \"UP\" },\n    \"diskSpace\": { \"status\": \"UP\" }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "metrics"]
+            },
+            "description": "Lists all available Micrometer metrics."
+          },
+          "response": []
+        },
+        {
+          "name": "Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/prometheus",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "prometheus"]
+            },
+            "description": "Prometheus-format metrics for scraping."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Country — SOAP Integration",
+      "item": [
+        {
+          "name": "Fetch & Save Country (Kenya)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has id', () => pm.expect(pm.response.json().id).to.be.a('number'));",
+                  "pm.test('Name is Kenya', () => pm.expect(pm.response.json().name).to.eql('Kenya'));",
+                  "pm.test('Has isoCode', () => pm.expect(pm.response.json().isoCode).to.not.be.empty);",
+                  "pm.test('Has languages', () => pm.expect(pm.response.json().languages).to.not.be.empty);",
+                  "pm.collectionVariables.set('countryId', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kenya\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/country",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country"]
+            },
+            "description": "Converts name to sentence case → calls SOAP CountryISOCode → calls SOAP FullCountryInfo → saves to MySQL.\n\nThe id returned is auto-saved to {{countryId}} for use in subsequent requests."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Kenya\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/country" }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"id\": 1,\n  \"countryUUID\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"name\": \"Kenya\",\n  \"capitalCity\": \"Nairobi\",\n  \"phoneCode\": \"254\",\n  \"continentCode\": \"AF\",\n  \"currencyIsoCode\": \"KES\",\n  \"countryFlag\": \"http://www.oorsprong.org/WebSamples.CountryInfo/Flags/Kenya.jpg\",\n  \"isoCode\": \"KE\",\n  \"languages\": [\n    { \"isoCode\": \"SW\", \"name\": \"Swahili\" },\n    { \"isoCode\": \"EN\", \"name\": \"English\" }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Fetch & Save Country (lowercase input)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Sentence case applied', () => pm.expect(pm.response.json().name).to.eql('Tanzania'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"tanzania\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/country",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country"]
+            },
+            "description": "Tests sentence-case normalisation — 'tanzania' should come back as 'Tanzania'."
+          },
+          "response": []
+        },
+        {
+          "name": "Validation — empty name (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Has message', () => pm.expect(pm.response.json().message).to.not.be.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/country",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country"]
+            },
+            "description": "Empty name fails @NotBlank validation → 400 Bad Request."
+          },
+          "response": [
+            {
+              "name": "400 Bad Request",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/country" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"statusCode\": 400,\n  \"message\": \"must not be blank\",\n  \"error\": \"Bad Request\",\n  \"path\": \"/api/country\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Validation — missing body (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country"]
+            },
+            "description": "No body at all → HttpMessageNotReadableException → 400."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Country — CRUD",
+      "item": [
+        {
+          "name": "Get All Countries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country"]
+            },
+            "description": "Returns all saved countries with their languages."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/api/country" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "[\n  {\n    \"id\": 1,\n    \"name\": \"Kenya\",\n    \"capitalCity\": \"Nairobi\",\n    \"isoCode\": \"KE\",\n    \"languages\": [{ \"isoCode\": \"SW\", \"name\": \"Swahili\" }]\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get Country by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has name', () => pm.expect(pm.response.json().name).to.not.be.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country/{{countryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country", "{{countryId}}"]
+            },
+            "description": "Fetch a single country by its database ID.\n\n{{countryId}} is auto-set when you run 'Fetch & Save Country (Kenya)'."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Country — Not Found (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country/99999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country", "99999"]
+            },
+            "description": "ID that does not exist → CustomException → 400."
+          },
+          "response": [
+            {
+              "name": "400 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/api/country/99999" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"statusCode\": 400,\n  \"message\": \"Country not found with id: 99999\",\n  \"error\": \"Bad Request\",\n  \"path\": \"/api/country/99999\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Country",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Capital city updated', () => pm.expect(pm.response.json().capitalCity).to.eql('Nairobi (Updated)'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kenya\",\n  \"capitalCity\": \"Nairobi (Updated)\",\n  \"phoneCode\": \"254\",\n  \"continentCode\": \"AF\",\n  \"currencyIsoCode\": \"KES\",\n  \"countryFlag\": \"http://www.oorsprong.org/WebSamples.CountryInfo/Flags/Kenya.jpg\",\n  \"isoCode\": \"KE\",\n  \"languages\": [\n    { \"isoCode\": \"SW\", \"name\": \"Swahili\" },\n    { \"isoCode\": \"EN\", \"name\": \"English\" }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/country/{{countryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country", "{{countryId}}"]
+            },
+            "description": "Update any field on a saved country. Languages list is replaced entirely."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Country",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/country/{{countryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "country", "{{countryId}}"]
+            },
+            "description": "Delete a country and its languages (cascade). Returns 204 No Content."
+          },
+          "response": [
+            {
+              "name": "204 No Content",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/api/country/{{countryId}}" }
+              },
+              "status": "No Content",
+              "code": 204,
+              "body": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
