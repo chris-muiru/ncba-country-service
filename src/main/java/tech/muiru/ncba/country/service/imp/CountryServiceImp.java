@@ -30,6 +30,11 @@ public class CountryServiceImp implements CountryService {
         log.info("fetchAndSave - countryName: {}", sentenceCase);
 
         String isoCode = soapClient.getCountryISOCode(sentenceCase);
+
+        if (countryInfoRepo.existsByIsoCode(isoCode)) {
+            throw new CustomException("Country already exists: " + sentenceCase);
+        }
+
         CountryInfoDTO soapDto = soapClient.getFullCountryInfo(isoCode);
 
         CountryInfoDef entity = toEntity(soapDto);

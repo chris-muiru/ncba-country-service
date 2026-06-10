@@ -44,6 +44,7 @@ exception/      GlobalExceptionHandler  400 / 500 responses
 |---|---|
 | SOAP integration | Raw XML over `RestTemplate` — no Spring-WS overhead |
 | Retries | 3 attempts, 1s delay in `executeWithRetry()` |
+| Circuit breaker | Resilience4j `@CircuitBreaker` — opens after 50% failure rate, recovers after 10s |
 | Timeouts | 5s connect, 10s read via `SimpleClientHttpRequestFactory` |
 | Scaling | Stateless app + Kubernetes HPA (min 2, max 5 pods at 70% CPU) |
 | Monitoring | Actuator + Micrometer Prometheus on `/actuator/prometheus` |

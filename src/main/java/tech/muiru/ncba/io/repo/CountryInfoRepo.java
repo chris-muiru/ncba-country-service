@@ -8,5 +8,6 @@ import java.util.UUID;
 
 public interface CountryInfoRepo extends JpaRepository<CountryInfoDef, Long> {
 
-    Optional<CountryInfoDef> findByCountryUUID(UUID uuid);
+
+    boolean existsByIsoCode(String isoCode);
 }
