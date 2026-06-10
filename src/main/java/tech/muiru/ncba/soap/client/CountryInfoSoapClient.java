@@ -1,5 +1,6 @@
 package tech.muiru.ncba.soap.client;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +37,7 @@ public class CountryInfoSoapClient {
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_DELAY_MS = 1000L;
 
+    @CircuitBreaker(name = "soapClient", fallbackMethod = "getCountryISOCodeFallback")
     public String getCountryISOCode(String countryName) {
         log.info("getCountryISOCode - countryName: {}", countryName);
         String requestXml = buildIsoCodeRequest(countryName);
@@ -47,6 +49,7 @@ public class CountryInfoSoapClient {
         return isoCode;
     }
 
+    @CircuitBreaker(name = "soapClient", fallbackMethod = "getFullCountryInfoFallback")
     public CountryInfoDTO getFullCountryInfo(String isoCode) {
         log.info("getFullCountryInfo - isoCode: {}", isoCode);
         String requestXml = buildFullCountryInfoRequest(isoCode);
@@ -56,6 +59,16 @@ public class CountryInfoSoapClient {
 
         log.info("getFullCountryInfo - result country: {}", dto.name());
         return dto;
+    }
+
+    private String getCountryISOCodeFallback(String countryName, Throwable t) {
+        log.info("getCountryISOCode circuit open - countryName: {}, error: {}", countryName, t.getMessage());
+        throw new CustomException("SOAP service unavailable for country: " + countryName);
+    }
+
+    private CountryInfoDTO getFullCountryInfoFallback(String isoCode, Throwable t) {
+        log.info("getFullCountryInfo circuit open - isoCode: {}, error: {}", isoCode, t.getMessage());
+        throw new CustomException("SOAP service unavailable for isoCode: " + isoCode);
     }
 
     private String executeWithRetry(String requestXml, String operationName) {

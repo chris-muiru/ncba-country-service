@@ -50,6 +50,8 @@ Import `openapi/requests.json` into Postman. Set `{{baseUrl}}` to `http://localh
 | PUT | `/api/country/{id}` | Update |
 | DELETE | `/api/country/{id}` | Delete |
 | GET | `/actuator/health` | Health check |
+| GET | `/actuator/metrics` | App metrics |
+| GET | `/actuator/prometheus` | Prometheus metrics scrape |
 
 ---
 
