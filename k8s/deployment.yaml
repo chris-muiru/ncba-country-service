@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ncba-app
+  namespace: default
+  labels:
+    app: ncba-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ncba-app
+  template:
+    metadata:
+      labels:
+        app: ncba-app
+    spec:
+      containers:
+        - name: ncba-app
+          image: ncba-country-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          envFrom:
+            - configMapRef:
+                name: ncba-config
+            - secretRef:
+                name: ncba-secret
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
